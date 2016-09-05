@@ -349,9 +349,10 @@ class QSO:
             if wlist[0] is not None:
                 self.time = (prev.time[0], wlist[0][2]['time'][1])
                 if self.time[1] < prev.time[1]:
-                    self.time[0] += 1
-                if self.time[0] == 24:
-                    self.time[0] = 0
+                    hour = self.time[0] + 1
+                    if hour == 24:
+                        hour = 0
+                    self.time = (hour, self.time[1])
             else:
                 self.time = prev.time
         else:
