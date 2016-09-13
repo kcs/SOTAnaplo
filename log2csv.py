@@ -18,6 +18,11 @@ Example of input file:
 # if chases are also included the SOTA-ref must be set to *
 # everything after the SOTA-ref is considered additional note
 # and will not persist to next section (not even YOFF ref)
+# one optional note is a type of contest if the SOTA operation was carried
+# out within the rules of contest (for example Field-day), the type of contest
+# should be specified in the format contes:_contest_type_ where _contest_type_
+# will specify a rule file which determines the exchanges format and the
+# scoring method (this is still need to be expanded)
 
 # next lines hold qso data
 [time] [callsign] [freq] [mode] [RST-sent] [RST-rcvd] [SOTA-ref] [notes]
@@ -59,6 +64,9 @@ Example of input file:
 import sys
 import re
 from datetime import date
+import os.path
+
+from contest import Contest
 
 
 class LogException(Exception):
@@ -69,7 +77,7 @@ class LogException(Exception):
 
 # string matching functions
 call_prefix = r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)"
-call = re.compile(r"(?:"+call_prefix+r"/)?"+call_prefix+r"[0-9][a-z0-9]*(?:/[0-9a-z]+)?", re.I)
+call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?"+call_prefix+r"[0-9][a-z0-9]*(?:/[0-9a-z]+)?", re.I)
 sota_ref = re.compile(r"[a-z0-9]{1,3}/[a-z]{2}-[0-9]{3}", re.I)
 wwff_ref = re.compile(r"[a-z0-9]{1,2}f{2}-[0-9]{3,4}", re.I)
 locator = re.compile(r"[a-x]{2}[0-9]{2}[a-x]{2}", re.I)
@@ -78,6 +86,7 @@ time_reg = re.compile(r"(?P<hour>0?[0-9]|1[0-9]|2[0-3])?((?(hour)[0-5]|[0-5]?)[0
 freq = re.compile(r"((?:[0-9]+\.)?[0-9]+)([kMG]?Hz|[mc]?m)?")
 rst = re.compile(r"[1-5][1-9][1-9]?")
 word = re.compile(r"\S+")
+contest = re.compile(r"contest:(\w+)\s*")
 
 def find_word(string, start=0):
     """Find the first word starting from `start` position
@@ -222,7 +231,16 @@ class Activation:
         else:
             raise LogException("Error in activation definition, invalid SOTA reference detected", pos)
 
-        self.notes = string[end:].strip()
+        notes = string[end:].strip()
+
+        m = contest.search(notes)
+        if m:
+            self.contest = Contest(m.group(1))
+            notes = notes[:m.start()] + notes[m.end():]
+        else:
+            self.contest = None
+
+        self.notes = notes
         self.qsos = []
 
         # TODO: other information
@@ -235,10 +253,13 @@ class Activation:
         Consider the last qso as the previous one for the new qso
         """
         prev_qso = self.qsos[-1] if self.qsos else None
-        self.qsos.append(QSO(string, prev_qso))
+        if self.contest:
+            self.qsos.append(QSO(string, prev_qso, self.contest.exchange))
+        else:
+            self.qsos.append(QSO(string, prev_qso))
 
 
-    def print_qsos(self, format='SOTA_v2'):
+    def print_qsos(self, format='SOTA_v2', config=None):
         if self.previous:
             self.previous.print_qsos()
 
@@ -248,16 +269,26 @@ class Activation:
         #   self.date.strftime("%Y-%m-%d"), self.callsign))
 
         # TODO: only SOTA_v2 is understood as of now
-        sota_line = ['v2', self.callsign, self.ref, self.date.strftime("%d/%m/%Y")] + [''] * 6
-        for qso in self.qsos:
-            sota_line[4] = '{:02}{:02}'.format(qso.time[0], qso.time[1])
-            sota_line[5] = qso.freq
-            sota_line[6] = qso.mode
-            sota_line[7] = qso.callsign
-            sota_line[8] = getattr(qso, 'ref', '')
-            sota_line[9] = quote_text(qso.notes)
-            #sota_line[9] = quote_text(' '.join((qso.sent, qso.rcvd, qso.notes)))
-            print(','.join(sota_line))
+        if format == 'SOTA_v2':
+            sota_line = ['v2', self.callsign, self.ref, self.date.strftime("%d/%m/%Y")] + [''] * 6
+            for qso in self.qsos:
+                sota_line[4] = '{:02}{:02}'.format(qso.time[0], qso.time[1])
+                sota_line[5] = qso.freq
+                sota_line[6] = qso.mode
+                sota_line[7] = qso.callsign
+                sota_line[8] = getattr(qso, 'ref', '')
+                sota_line[9] = quote_text(qso.notes)
+                #sota_line[9] = quote_text(' '.join((qso.sent, qso.rcvd, qso.notes)))
+                print(','.join(sota_line))
+        # contest format: if a contest was specified for an activation
+        # use the contest rules to determine the output format
+        elif format == 'contest' and self.contest:
+            for qso in self.qsos:
+                self.contest.add_qso(self.callsign, self.date, qso)
+            self.contest.configure(self, config)
+            print(self.contest)
+        else:
+            raise ValueError("Unrecognized output format")
 
 
 class QSO:
@@ -266,7 +297,7 @@ class QSO:
     Missing fields from the string are filled with data from previous qso
     """
 
-    def __init__(self, string, prev=None):
+    def __init__(self, string, prev=None, exchange=None):
         """Initialize qso data with the following information:
         time callsign freq mode rst_sent rest_rcvd SOTA_ref notes
         """
@@ -312,11 +343,17 @@ class QSO:
             if m:
                 t['sota'] = w[0].upper()
 
+            # optional contest exchange
+            if exchange and i < 7:
+                m = exchange.fullmatch(w[0])
+                if m:
+                    t['exch'] = w[0]
+
         # now filter the type list
         # print(words)
 
-        typeorder = ['time', 'call', 'freq', 'mode', 'rst', 'rst', 'sota']
-        wlist = [None, None, None, None, None, None, None]
+        typeorder = ['time', 'call', 'freq', 'mode', 'rst', 'rst', 'exch', 'sota']
+        wlist = [None, None, None, None, None, None, None, None]
 
         lastelem = -1
         noteselem = 7
@@ -330,11 +367,15 @@ class QSO:
                 noteselem = i
                 break
 
-        # an rst can be mapped as frequency
-        if wlist[2] is not None and 'rst' in wlist[2][2] and wlist[5] is None and wlist[3] is None:
-            wlist[5] = wlist[4]
-            wlist[4] = wlist[2]
-            wlist[2] = None
+        # try to move back multiple mapped words
+        felist = [(i+2,w) for i,w in enumerate(wlist[2:6]) if w]
+        for i in range(6,3,-1):
+            if wlist[i] is None and felist and typeorder[i] in felist[-1][1][2]:
+                wlist[i] = felist[-1][1]
+                wlist[felist[-1][0]] = None
+                felist.pop()
+            if felist and felist[-1][0] == i:
+                felist.pop()
 
         # check for minimum change
         if wlist[1] is None and wlist[2] is None and wlist[3] is None:
@@ -383,24 +424,28 @@ class QSO:
             def_rst = '599'
         else:
             def_rst = '59'
-        if wlist[4] is None and wlist[5] is None:
+
+        if wlist[4] is None:
             self.sent = def_rst
+        else:
+            if len(wlist[4][2]['rst']) != len(def_rst):
+                raise LogException("Invalid RST for this mode", 0)
+            self.sent = wlist[4][2]['rst']
+
+        if wlist[5] is None:
             self.rcvd = def_rst
         else:
-            if wlist[4] is None or wlist[5] is None:
-                self.sent = def_rst
-                r = next(j[2]['rst'] for j in wlist[4:6])
-                if len(r) != len(def_rst):
-                    raise LogException("Invalid RST for this mode", 0)
-                self.rcvd = r
-            else:
-                if len(wlist[4][2]['rst']) != len(def_rst) or len(wlist[5][2]['rst']) != len(def_rst):
-                    raise LogException("Invalid RST for this mode", 0)
-                self.sent = wlist[4][2]['rst']
-                self.rcvd = wlist[5][2]['rst']
-        # SOTA ref
+            if len(wlist[5][2]['rst']) != len(def_rst):
+                raise LogException("Invalid RST for this mode", 0)
+            self.rcvd = wlist[5][2]['rst']
+
+        # optional exchange
         if wlist[6] is not None:
-            self.ref = wlist[6][2]['sota']
+            self.exch = wlist[6][2]['exch']
+
+        # SOTA ref
+        if wlist[7] is not None:
+            self.ref = wlist[7][2]['sota']
 
         # notes
         if noteselem < len(words):
@@ -408,6 +453,14 @@ class QSO:
         else:
             self.notes = ''
 
+        # day adjustment for multiple day activation
+        if prev:
+            if prev.time[0] * 60 + prev.time[1] > self.time[0] * self.time[1]:
+                self.day = prev.day + 1
+            else:
+                self.day = prev.day
+        else:
+            self.day = 0
 
 
 def parse_input(handle):
@@ -456,7 +509,8 @@ def parse_input(handle):
                 handle.name, e[0], e[1], e[2], '^', e[3] + 1),
                 file=sys.stderr)
     else:
-        activation.print_qsos(format='sota_v2')
+        activation.print_qsos(format='SOTA_v2')
+        activation.print_qsos(format='contest', config=os.path.splitext(handle.name)[0] + '.cts')
 
 if __name__ == '__main__':
     # no options right now, but it may have later on
