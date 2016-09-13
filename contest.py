@@ -86,36 +86,33 @@ class Contest:
 		if config_file:
 			self.output.configure_from_file(config_file)
 
-		config = [None] * len(cabrillo.fields)
+		config = {}
 		# contest is automatically configured for Field day
-		config[1] = "FIELD-DAY"
-		# parse the config file for additional configurations
+		config['contest'] = "FIELD-DAY"
 
 		# get callsign from the activation
 		callsign = getattr(activation, 'callsign')
 		if callsign:
-			config[0] = callsign
+			config['callsign'] = callsign
 			callparts = callsign.split('/')
 			# portable or fixed?
 			if callparts[-1] in ['P', 'M']:
-				config[7] = 2
+				config['station'] = 2
 			else:
-				config[7] = 0
+				config['station'] = 0
 			# operator field is the base callsign
-			if not config[23]:
-				# remove optional prefix
-				if len(callparts) > 1 and prefix.fullmatch(callparts[0]):
-					callparts.pop(0)
-				config[23] = callparts[0]
+			if len(callparts) > 1 and prefix.fullmatch(callparts[0]):
+				callparts.pop(0)
+			config['op'] = callparts[0]
 
 		# field day location should be the sota reference or the wwff reference
 		if getattr(activation, 'ref'):
-			config[16] = getattr(activation, 'ref')
-			config[25] = "SOTA activation"
+			config['location'] = getattr(activation, 'ref')
+			config['soapbox'] = "SOTA activation"
 		elif getattr(activation, 'wwff'):
-			config[16] = getattr(activation, 'wwff')
+			config['location'] = getattr(activation, 'wwff')
 
-		self.output.configure(config)
+		self.output.configure(config, True)
 
 		# get own continent from callsign
 		_, ctyinfo = country.find(callsign)
