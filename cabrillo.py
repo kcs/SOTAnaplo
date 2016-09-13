@@ -150,6 +150,35 @@ def merge_field(a,b):
 	return [a, b]
 
 
+def clean_freq(f):
+	""" return the frequency and the corresponding band cleaned upper
+	for cabrillo format
+	"""
+	if f.endswith('MHz'):
+		freq = float(f[:-3])
+	elif f.endswith('kHz'):
+		freq = float(f[:-3]) / 1000
+	elif f.endswith('GHz'):
+		freq = float(f[:-3]) * 1000
+	else:
+		freq = float(f)
+
+	if freq < 30:
+		nfreq = round(freq * 1000)
+	elif freq < 1000:
+		nfreq = round(freq)
+	elif freq < 10000:
+		nfreq = "{:.1}G".format(freq / 1000)
+	else:
+		nfreq = "{}G".format(round(freq / 1000))
+
+	for k,v in bands.items():
+		if freq >= v[0] and freq <= v[1]:
+			band = k
+			break
+
+	return nfreq, band
+
 class Cabrillo:
 	""" This is an object containing all the information needed for the
 	Cabrillo header and the QSOs
@@ -159,6 +188,7 @@ class Cabrillo:
 		"""
 
 		self.score = 0
+		self.mult = 0
 		self.qsos = []
 		self.fields = {}
 
@@ -268,15 +298,8 @@ class Cabrillo:
 
 
 
-	def add_qso(self, freq, mode, date, time, call_sent, rst_sent, exch_sent, call_rcvd, rst_rcvd, exch_rcvd, t, score):
-		if freq < 30:
-			nfreq = round(freq * 1000)
-		elif freq < 1000:
-			nfreq = round(freq)
-		elif freq < 10000:
-			nfreq = "{:.1}G".format(freq / 1000)
-		else:
-			nfreq = "{}G".format(round(freq / 1000))
+	def add_qso(self, freq, mode, date, time, call_sent, rst_sent, exch_sent, call_rcvd, rst_rcvd, exch_rcvd, t, score, mult):
+		nfreq, band = clean_freq(freq)
 		self.qsos.append(cbr_qso.format(
 				f = nfreq,
 				m = cbr_mode.get(mode.upper(), mode),
@@ -291,19 +314,17 @@ class Cabrillo:
 				t = t
 			))
 		self.score += score
+		self.mult = mult
 
 		if not self.mode and mode.upper() in fields[4][2]:
 			self.mode = fields[4][2].index(mode.upper())
 		elif mode.upper() in fields[4][2] and self.mode != fields[4][2].index(mode.upper()):
 			self.mode = 4
 
-		for k,v in bands.items():
-			if freq >= v[0] and freq <= v[1]:
-				if self.band is None:
-					self.band = k
-				elif self.band != k:
-					self.band = 0
-				break
+		if self.band is None:
+			self.band = band
+		elif self.band != band:
+			self.band = 0
 
 
 	def fields_str(self):
@@ -323,6 +344,6 @@ class Cabrillo:
 
 	def __str__(self):
 		return cbr_file.format(
-			fields = "\n".join(self.fields_str()).format(score=self.score),
+			fields = "\n".join(self.fields_str()).format(score=self.score * self.mult),
 			qsos = "\n".join(self.qsos)
 		)

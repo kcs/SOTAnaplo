@@ -283,9 +283,9 @@ class Activation:
         # contest format: if a contest was specified for an activation
         # use the contest rules to determine the output format
         elif format == 'contest' and self.contest:
+            self.contest.configure(self, config)
             for qso in self.qsos:
                 self.contest.add_qso(self.callsign, self.date, qso)
-            self.contest.configure(self, config)
             print(self.contest)
         else:
             raise ValueError("Unrecognized output format")
@@ -463,7 +463,7 @@ class QSO:
             self.day = 0
 
 
-def parse_input(handle):
+def parse_input(handle, format=None):
     comment_line = False
     blank_line = False
     possible_blank_line = False
@@ -509,13 +509,26 @@ def parse_input(handle):
                 handle.name, e[0], e[1], e[2], '^', e[3] + 1),
                 file=sys.stderr)
     else:
-        activation.print_qsos(format='SOTA_v2')
-        activation.print_qsos(format='contest', config=os.path.splitext(handle.name)[0] + '.cts')
+        if format == 'contest':
+            activation.print_qsos(format='contest', config=os.path.splitext(handle.name)[0] + '.cts')
+        elif format:
+            activation.print_qsos(format=format)
+        else:
+            activation.print_qsos()
+
 
 if __name__ == '__main__':
     # no options right now, but it may have later on
     # so check remaining args
     files = sys.argv[1:]
+
+    # simple argument handling, replace later on with argument parsing
+    if '-c' in files:
+        files.remove('-c')
+        contest_output = True
+    else:
+        contest_output = False
+
     if not files:
         files = ['-']
     for file in files:
@@ -523,4 +536,7 @@ if __name__ == '__main__':
             parse_input(sys.stdin)
         else:
             with open(file, 'r') as f:
-                parse_input(f)
+                if contest_output:
+                    parse_input(f, format='contest')
+                else:
+                    parse_input(f)

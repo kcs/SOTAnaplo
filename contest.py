@@ -9,6 +9,7 @@ from this file
 
 import re
 import cabrillo
+import country
 
 
 prefix = re.compile(r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)")
@@ -39,6 +40,8 @@ class Contest:
 		# internal representation
 		self.output = cabrillo.Cabrillo()
 		self.exch = 0
+		# multiplier is the number of countries
+		self.mult = set()
 
 
 	def add_qso(self, call, date, qso):
@@ -49,8 +52,18 @@ class Contest:
 		initial parameters
 		"""
 		self.exch += 1
+		# check call for scoring
+		cty, ctyinfo = country.find(qso.callsign)
+		_,band = cabrillo.clean_freq(qso.freq)
+		self.mult.add((band, cty))
+		if qso.callsign.endswith('/P') or qso.callsign.endswith('/M'):
+			score = 3
+		else:
+			score = 2
+		if ctyinfo['continent'] != self.continent:
+			score *= 2
 		self.output.add_qso(
-			float(qso.freq[:-3]),
+			qso.freq,
 			qso.mode,
 			date,
 			qso.time,
@@ -61,7 +74,8 @@ class Contest:
 			qso.rcvd,
 			getattr(qso, 'exch', '000'),
 			0,
-			0)
+			score,
+			len(self.mult))
 
 
 	def configure(self, activation, config_file=None):
@@ -102,6 +116,10 @@ class Contest:
 			config[16] = getattr(activation, 'wwff')
 
 		self.output.configure(config)
+
+		# get own continent from callsign
+		_, ctyinfo = country.find(callsign)
+		self.continent = ctyinfo['continent']
 
 
 	def __str__(self):
