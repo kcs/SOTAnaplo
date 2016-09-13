@@ -6,8 +6,7 @@ builder to create an output
 cbr_file = """START-OF-LOG: 3.0
 {fields}
 {qsos}
-END-OF-LOG
-"""
+END-OF-LOG:"""
 
 contests = [
     "AP-SPRINT",
