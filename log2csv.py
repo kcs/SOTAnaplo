@@ -65,6 +65,7 @@ import sys
 import re
 from datetime import date
 import os.path
+import argparse
 
 from contest import Contest
 
@@ -77,7 +78,7 @@ class LogException(Exception):
 
 # string matching functions
 call_prefix = r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)"
-call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?"+call_prefix+r"[0-9][a-z0-9]*(?:/[0-9a-z]+)?", re.I)
+call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?("+call_prefix+r"[0-9][a-z0-9]*)(?:/[0-9a-z]+)?", re.I)
 sota_ref = re.compile(r"[a-z0-9]{1,3}/[a-z]{2}-[0-9]{3}", re.I)
 wwff_ref = re.compile(r"[a-z0-9]{1,2}f{2}-[0-9]{3,4}", re.I)
 locator = re.compile(r"[a-x]{2}[0-9]{2}[a-x]{2}", re.I)
@@ -259,7 +260,7 @@ class Activation:
             self.qsos.append(QSO(string, prev_qso))
 
 
-    def print_qsos(self, format='SOTA_v2', config=None):
+    def print_qsos(self, format='SOTA_v2', config=None, handle=None):
         if self.previous:
             self.previous.print_qsos()
 
@@ -279,14 +280,14 @@ class Activation:
                 sota_line[8] = getattr(qso, 'ref', '')
                 sota_line[9] = quote_text(qso.notes)
                 #sota_line[9] = quote_text(' '.join((qso.sent, qso.rcvd, qso.notes)))
-                print(','.join(sota_line))
+                print(','.join(sota_line), file=handle)
         # contest format: if a contest was specified for an activation
         # use the contest rules to determine the output format
         elif format == 'contest' and self.contest:
             self.contest.configure(self, config)
             for qso in self.qsos:
                 self.contest.add_qso(self.callsign, self.date, qso)
-            print(self.contest)
+            print(self.contest, file=handle)
         else:
             raise ValueError("Unrecognized output format")
 
@@ -463,7 +464,7 @@ class QSO:
             self.day = 0
 
 
-def parse_input(handle, format=None):
+def parse_input(input_handle, output_handle=None, output_name='', **params):
     comment_line = False
     blank_line = False
     possible_blank_line = False
@@ -472,7 +473,7 @@ def parse_input(handle, format=None):
     errors = []
     cnt = 0
     # go though the lines
-    for line in handle:
+    for line in input_handle:
         cnt += 1
         s,d,c = line.partition('#')
         s = s.strip()
@@ -506,37 +507,61 @@ def parse_input(handle, format=None):
     if errors:
         for e in errors:
             print("{}:{}: {}\n {}\n {:>{}}".format(
-                handle.name, e[0], e[1], e[2], '^', e[3] + 1),
+                input_handle.name, e[0], e[1], e[2], '^', e[3] + 1),
                 file=sys.stderr)
     else:
-        if format == 'contest':
-            activation.print_qsos(format='contest', config=os.path.splitext(handle.name)[0] + '.cts')
-        elif format:
-            activation.print_qsos(format=format)
+        if output_handle:
+            activation.print_qsos(handle=output_handle, **params)
+        elif output_name:
+            filename = output_name.format(
+                callsign = call.fullmatch(activation.callsign).group(1),
+                file = os.path.splitext(os.path.basename(input_handle.name))[0],
+                ext = activation.contest.output.ext if params.get('format') == 'contest' else 'csv'
+            )
+            with open(filename, 'w', encoding='utf-8') as f:
+                activation.print_qsos(handle=f, **params)
         else:
-            activation.print_qsos()
+            activation.print_qsos(**params)
 
 
 if __name__ == '__main__':
-    # no options right now, but it may have later on
-    # so check remaining args
-    files = sys.argv[1:]
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Simple log converter for creating SOTA csv, Cabrillo, etc. from a simplified log file.')
+    parser.add_argument('files', metavar='FILE', nargs='*',
+                        help='Log file to be processed. If no file is present the standard input is used. If both some files and the standard input is needed use `-` to add standard input to the list of files')
+    parser.add_argument('-c', '--contest', action='store_true',
+                        help='Create output for the contest specified in the processed file')
+    parser.add_argument('-o', '--output',
+                        help='Output file or directory. If not present, the generated output is printed to standard output. If the argument is a directory, then a file with the same name as the input file and a proper extension will be used.')
 
-    # simple argument handling, replace later on with argument parsing
-    if '-c' in files:
-        files.remove('-c')
-        contest_output = True
-    else:
-        contest_output = False
+    args = parser.parse_args()
 
-    if not files:
-        files = ['-']
-    for file in files:
+    params = {}
+    if args.contest:
+        params['format'] = 'contest'
+
+    if not args.files:
+        args.files.append('-')
+
+    if args.output:
+        if os.path.isdir(args.output):
+            params['output_name'] = os.path.join(args.output, '{callsign} {file}.{ext}')
+        elif len(args.files) != 1 or args.files[0] != '-':
+            params['output_handle'] = open(args.output, 'w', encoding='utf-8')
+
+    for file in args.files:
         if file == '-':
             parse_input(sys.stdin)
         else:
+            if args.contest:
+                config = os.path.splitext(handle.name)[0] + '.cts'
+                if os.path.isfile(config):
+                    params['config'] = config
+                elif 'config' in params:
+                    del params['config']
+
             with open(file, 'r') as f:
-                if contest_output:
-                    parse_input(f, format='contest')
-                else:
-                    parse_input(f)
+                parse_input(f, **params)
+
+    if 'output_handle' in params:
+        close(params['output_handle'])

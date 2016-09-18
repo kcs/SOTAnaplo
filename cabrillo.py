@@ -101,289 +101,291 @@ bands = {
 
 # order in which different fields are printed to the output
 field_list = [
-	"callsign",
-	"contest",
-	"assisted",
-	"band",
-	"mode",
-	"operator",
-	"power",
-	"station",
-	"time",
-	"transmitter",
-	"overlay",
-	"certificate",
-	"score",
-	"club",
-	"creator",
-	"email",
-	"location",
-	"name",
-	"address",
-	"city",
-	"province",
-	"postalcode",
-	"country",
-	"op",
-	"offtime",
-	"soapbox"
+    "callsign",
+    "contest",
+    "assisted",
+    "band",
+    "mode",
+    "operator",
+    "power",
+    "station",
+    "time",
+    "transmitter",
+    "overlay",
+    "certificate",
+    "score",
+    "club",
+    "creator",
+    "email",
+    "location",
+    "name",
+    "address",
+    "city",
+    "province",
+    "postalcode",
+    "country",
+    "op",
+    "offtime",
+    "soapbox"
 ]
 
 field_names = {
-	"callsign": "CALLSIGN",
-	"contest": "CONTEST",
-	"assisted": "CATEGORY-ASSISTED",
-	"band": "CATEGORY-BAND",
-	"mode": "CATEGORY-MODE",
-	"operator": "CATEGORY-OPERATOR",
-	"power": "CATEGORY-POWER",
-	"station": "CATEGORY-STATION",
-	"time": "CATEGORY-TIME",
-	"transmitter": "CATEGORY-TRANSMITTER",
-	"overlay": "CATEGORY-OVERLAY",
-	"certificate": "CERTIFICATE",
-	"score": "CLAIMED-SCORE",
-	"club": "CLUB",
-	"creator": "CREATED-BY",
-	"email": "EMAIL",
-	"location": "LOCATION",
-	"name": "NAME",
-	"address": "ADDRESS",
-	"city": "ADDRESS-CITY",
-	"province": "ADDRESS-STATE-PROVINCE",
-	"postalcode": "ADDRESS-POSTALCODE",
-	"country": "ADDRESS-COUNTRY",
-	"op": "OPERATORS",
-	"offtime": "OFFTIME",
-	"soapbox": "SOAPBOX"
+    "callsign": "CALLSIGN",
+    "contest": "CONTEST",
+    "assisted": "CATEGORY-ASSISTED",
+    "band": "CATEGORY-BAND",
+    "mode": "CATEGORY-MODE",
+    "operator": "CATEGORY-OPERATOR",
+    "power": "CATEGORY-POWER",
+    "station": "CATEGORY-STATION",
+    "time": "CATEGORY-TIME",
+    "transmitter": "CATEGORY-TRANSMITTER",
+    "overlay": "CATEGORY-OVERLAY",
+    "certificate": "CERTIFICATE",
+    "score": "CLAIMED-SCORE",
+    "club": "CLUB",
+    "creator": "CREATED-BY",
+    "email": "EMAIL",
+    "location": "LOCATION",
+    "name": "NAME",
+    "address": "ADDRESS",
+    "city": "ADDRESS-CITY",
+    "province": "ADDRESS-STATE-PROVINCE",
+    "postalcode": "ADDRESS-POSTALCODE",
+    "country": "ADDRESS-COUNTRY",
+    "op": "OPERATORS",
+    "offtime": "OFFTIME",
+    "soapbox": "SOAPBOX"
 }
 
 field_default = {
-	"score": "{score}",
-	"creator": "SOTAnaplo v0.1",
+    "score": "{score}",
+    "creator": "SOTAnaplo v0.1",
 }
 
 field_values = {
-	"contest": contests,
-	"assisted": ["ASSISTED", "NON-ASSISTED"],
-	"band": ["ALL"],
-	"mode": ["SSB", "CW", "RTTY", "FM", "MIXED"],
-	"operator": ["SINGLE-OP", "MULTI-OP", "CHECKLOG"],
-	"power": ["HIGH", "LOW", "QRP"],
-	"station": stations,
-	"time": ["6-HOURS", "12-HOURS", "24-HOURS"],
-	"transmitter": ["ONE", "TWO", "LIMITED", "UNLIMITED", "SWL"],
-	"overlay": ["CLASSIC", "ROOKIE", "TB-WIRES", "NOVICE-TECH", "OVER-50"],
-	"certificate": ["YES", "NO"],
+    "contest": contests,
+    "assisted": ["ASSISTED", "NON-ASSISTED"],
+    "band": ["ALL"],
+    "mode": ["SSB", "CW", "RTTY", "FM", "MIXED"],
+    "operator": ["SINGLE-OP", "MULTI-OP", "CHECKLOG"],
+    "power": ["HIGH", "LOW", "QRP"],
+    "station": stations,
+    "time": ["6-HOURS", "12-HOURS", "24-HOURS"],
+    "transmitter": ["ONE", "TWO", "LIMITED", "UNLIMITED", "SWL"],
+    "overlay": ["CLASSIC", "ROOKIE", "TB-WIRES", "NOVICE-TECH", "OVER-50"],
+    "certificate": ["YES", "NO"],
 }
 
 mergeable_fields = (
-	"address",
-	"op",
-	"soapbox"
+    "address",
+    "op",
+    "soapbox"
 )
 
 cbr_qso = "QSO: {f:>5} {m} {d} {time:04} {sc:13} {sr:>3} {se:6} {rc:13} {rr:>3} {re:6} {t}"
 
 cbr_mode = {
-	"SSB": "PH",
-	"USB": "PH",
-	"LSB": "PH",
-	"AM": "PH",
-	"CW": "CW",
+    "SSB": "PH",
+    "USB": "PH",
+    "LSB": "PH",
+    "AM": "PH",
+    "CW": "CW",
     "FM": "FM",
-	"RTTY": "RY"
+    "RTTY": "RY"
 }
 
 
 def merge_field(a,b):
-	if not a:
-		return b
-	if type(a) is list:
-		return a + [b]
-	return [a, b]
+    if not a:
+        return b
+    if type(a) is list:
+        return a + [b]
+    return [a, b]
 
 
 def clean_freq(f):
-	""" return the frequency and the corresponding band cleaned upper
-	for cabrillo format
-	"""
-	if f.endswith('MHz'):
-		freq = float(f[:-3])
-	elif f.endswith('kHz'):
-		freq = float(f[:-3]) / 1000
-	elif f.endswith('GHz'):
-		freq = float(f[:-3]) * 1000
-	else:
-		freq = float(f)
+    """ return the frequency and the corresponding band cleaned upper
+    for cabrillo format
+    """
+    if f.endswith('MHz'):
+        freq = float(f[:-3])
+    elif f.endswith('kHz'):
+        freq = float(f[:-3]) / 1000
+    elif f.endswith('GHz'):
+        freq = float(f[:-3]) * 1000
+    else:
+        freq = float(f)
 
-	if freq < 30:
-		nfreq = round(freq * 1000)
-	elif freq < 1000:
-		nfreq = round(freq)
-	elif freq < 10000:
-		nfreq = "{:.1}G".format(freq / 1000)
-	else:
-		nfreq = "{}G".format(round(freq / 1000))
+    if freq < 30:
+        nfreq = round(freq * 1000)
+    elif freq < 1000:
+        nfreq = round(freq)
+    elif freq < 10000:
+        nfreq = "{:.1}G".format(freq / 1000)
+    else:
+        nfreq = "{}G".format(round(freq / 1000))
 
-	for k,v in bands.items():
-		if freq >= v[0] and freq <= v[1]:
-			band = k
-			break
+    for k,v in bands.items():
+        if freq >= v[0] and freq <= v[1]:
+            band = k
+            break
 
-	return nfreq, band
+    return nfreq, band
 
 class Cabrillo:
-	""" This is an object containing all the information needed for the
-	Cabrillo header and the QSOs
-	"""
-	def __init__(self, config=None):
-		""" Initialize the generator object with an optional config
-		"""
+    """ This is an object containing all the information needed for the
+    Cabrillo header and the QSOs
+    """
+    def __init__(self, config=None):
+        """ Initialize the generator object with an optional config
+        """
 
-		self.score = 0
-		self.mult = 0
-		self.qsos = []
-		self.fields = dict(field_default)
+        self.ext = 'cbr'
 
-		# qso information by majority vote
-		self.mode = None
-		self.band = None
+        self.score = 0
+        self.mult = 0
+        self.qsos = []
+        self.fields = dict(field_default)
 
-		if config:
-			self.configure(config)
+        # qso information by majority vote
+        self.mode = None
+        self.band = None
 
-
-	def configure(self, config, ignore=False):
-		""" Configure the contest fields
-		The config parameter must be a dictionaty with keys from the field list
-		specifying the text to be inserted to the given field or the index of
-		the available field values
-		If the ignore paramter is set, the field is ignored if it is already set
-		"""
-		for k,c in config.items():
-			if k not in field_names:
-				raise ValueError("Invalid Cabrillo configuration field '{}'".format(k))
-			if k in self.fields and ignore:
-				continue
-			if type(c) is int:
-				if c < len(field_values[k]):
-					self.fields[k] = field_values[k][c]
-			else:
-				self.fields[k] = c
+        if config:
+            self.configure(config)
 
 
-	def configure_from_file(self, config_file):
-		""" Configure the contest fields reading them from a file
-		Only certain fields can be configured this way
-		"""
-		config = {}
-		# parse the config file for additional configurations
-		with open(config_file, 'r', encoding='utf-8') as f:
-			i = 0
-			for line in f:
-				i += 1
-				line = line.strip()
-				if line:
-					code = [x.strip() for x in line.split(':',1)]
-					if len(code) != 2 or not code[0] or not code[1]:
-						raise ValueError("Invalid configuration line {}".format(i))
-
-					# state is assimilated into province
-					if code[0] == 'state':
-						code[0] = 'province'
-
-					if code[0] in mergeable_fields:
-						config[code[0]] = merge_field(config.get(code[0]), code[1])
-					elif code[0] in field_names:
-						if code[0] in config:
-							raise ValueError("Field `{}` given multiple times".format(code[0]))
-						config[code[0]] = code[1]
-					elif code[0] == 'category':
-						# category line contains possible categories
-						cats = code[1].split()
-						for cat in cats:
-							if cat == 'sosb':
-								config['operator'] = 0
-								# band is taken from qsos unless additionally specified
-							elif cat == 'somb':
-								config['operator'] = 0
-								config['band'] = 0
-							elif cat == 'momb':
-								config['operator'] = 1
-								config['band'] = 0
-							# power
-							elif cat.upper() in field_values['power']:
-								config['power'] = field_values['power'].index(cat.upper())
-							# mode
-							elif cat.upper() in field_values['mode']:
-								config['mode'] = field_values['mode'].index(cat.upper())
-							elif cat == 'assisted':
-								config['assisted'] = 0
-							# TODO maybe other categories
-					else:
-						raise ValueError('Invalid configuration `{}` in line {}'.format(code[0], i))
-		# if not specified non-assisted is default
-		if 'assisted' not in config:
-			config['assisted'] = 1
-		# if op not specified send this as checklog
-		if 'operator' not in config:
-			config['operator'] = 2
-		# normally only one transmitter
-		if 'transmitter' not in config:
-			config['transmitter'] = 0
-
-		self.configure(config)
+    def configure(self, config, ignore=False):
+        """ Configure the contest fields
+        The config parameter must be a dictionaty with keys from the field list
+        specifying the text to be inserted to the given field or the index of
+        the available field values
+        If the ignore paramter is set, the field is ignored if it is already set
+        """
+        for k,c in config.items():
+            if k not in field_names:
+                raise ValueError("Invalid Cabrillo configuration field '{}'".format(k))
+            if k in self.fields and ignore:
+                continue
+            if type(c) is int:
+                if c < len(field_values[k]):
+                    self.fields[k] = field_values[k][c]
+            else:
+                self.fields[k] = c
 
 
+    def configure_from_file(self, config_file):
+        """ Configure the contest fields reading them from a file
+        Only certain fields can be configured this way
+        """
+        config = {}
+        # parse the config file for additional configurations
+        with open(config_file, 'r', encoding='utf-8') as f:
+            i = 0
+            for line in f:
+                i += 1
+                line = line.strip()
+                if line:
+                    code = [x.strip() for x in line.split(':',1)]
+                    if len(code) != 2 or not code[0] or not code[1]:
+                        raise ValueError("Invalid configuration line {}".format(i))
 
-	def add_qso(self, freq, mode, date, time, call_sent, rst_sent, exch_sent, call_rcvd, rst_rcvd, exch_rcvd, t, score, mult):
-		nfreq, band = clean_freq(freq)
-		self.qsos.append(cbr_qso.format(
-				f = nfreq,
-				m = cbr_mode.get(mode.upper(), mode),
-				d = date.strftime("%Y-%m-%d"),
-				time = time[0] * 100 + time[1],
-				sc = call_sent.upper(),
-				sr = rst_sent,
-				se = exch_sent,
-				rc = call_rcvd.upper(),
-				rr = rst_rcvd,
-				re = exch_rcvd,
-				t = t
-			))
-		self.score += score
-		self.mult = mult
+                    # state is assimilated into province
+                    if code[0] == 'state':
+                        code[0] = 'province'
 
-		if not self.mode and mode.upper() in field_values['mode']:
-			self.mode = field_values['mode'].index(mode.upper())
-		elif mode.upper() in field_values['mode'] and self.mode != field_values['mode'].index(mode.upper()):
-			self.mode = 4
+                    if code[0] in mergeable_fields:
+                        config[code[0]] = merge_field(config.get(code[0]), code[1])
+                    elif code[0] in field_names:
+                        if code[0] in config:
+                            raise ValueError("Field `{}` given multiple times".format(code[0]))
+                        config[code[0]] = code[1]
+                    elif code[0] == 'category':
+                        # category line contains possible categories
+                        cats = code[1].split()
+                        for cat in cats:
+                            if cat == 'sosb':
+                                config['operator'] = 0
+                                # band is taken from qsos unless additionally specified
+                            elif cat == 'somb':
+                                config['operator'] = 0
+                                config['band'] = 0
+                            elif cat == 'momb':
+                                config['operator'] = 1
+                                config['band'] = 0
+                            # power
+                            elif cat.upper() in field_values['power']:
+                                config['power'] = field_values['power'].index(cat.upper())
+                            # mode
+                            elif cat.upper() in field_values['mode']:
+                                config['mode'] = field_values['mode'].index(cat.upper())
+                            elif cat == 'assisted':
+                                config['assisted'] = 0
+                            # TODO maybe other categories
+                    else:
+                        raise ValueError('Invalid configuration `{}` in line {}'.format(code[0], i))
+        # if not specified non-assisted is default
+        if 'assisted' not in config:
+            config['assisted'] = 1
+        # if op not specified send this as checklog
+        if 'operator' not in config:
+            config['operator'] = 2
+        # normally only one transmitter
+        if 'transmitter' not in config:
+            config['transmitter'] = 0
 
-		if self.band is None:
-			self.band = band
-		elif self.band != band:
-			self.band = 0
+        self.configure(config)
 
 
-	def fields_str(self):
-		for i in range(len(field_list)):
-			field = field_list[i]
-			if field in self.fields:
-				if type(self.fields[field]) in [list, tuple]:
-					for f in self.fields[field]:
-						yield "{}: {}".format(field_names[field], f)
-				else:
-					yield "{}: {}".format(field_names[field], self.fields[field])
-			# implicit guesses of band and mode
-			elif field == 'band' and self.band is not None:
-				yield "{}: {}".format(field_names['band'], field_values['band'][0] if self.band == 0 else self.band)
-			elif field == 'mode' and self.mode is not None:
-				yield "{}: {}".format(field_names['mode'], field_values['mode'][self.mode])
+
+    def add_qso(self, freq, mode, date, time, call_sent, rst_sent, exch_sent, call_rcvd, rst_rcvd, exch_rcvd, t, score, mult):
+        nfreq, band = clean_freq(freq)
+        self.qsos.append(cbr_qso.format(
+                f = nfreq,
+                m = cbr_mode.get(mode.upper(), mode),
+                d = date.strftime("%Y-%m-%d"),
+                time = time[0] * 100 + time[1],
+                sc = call_sent.upper(),
+                sr = rst_sent,
+                se = exch_sent,
+                rc = call_rcvd.upper(),
+                rr = rst_rcvd,
+                re = exch_rcvd,
+                t = t
+            ))
+        self.score += score
+        self.mult = mult
+
+        if not self.mode and mode.upper() in field_values['mode']:
+            self.mode = field_values['mode'].index(mode.upper())
+        elif mode.upper() in field_values['mode'] and self.mode != field_values['mode'].index(mode.upper()):
+            self.mode = 4
+
+        if self.band is None:
+            self.band = band
+        elif self.band != band:
+            self.band = 0
 
 
-	def __str__(self):
-		return cbr_file.format(
-			fields = "\n".join(self.fields_str()).format(score=self.score * self.mult),
-			qsos = "\n".join(self.qsos)
-		)
+    def fields_str(self):
+        for i in range(len(field_list)):
+            field = field_list[i]
+            if field in self.fields:
+                if type(self.fields[field]) in [list, tuple]:
+                    for f in self.fields[field]:
+                        yield "{}: {}".format(field_names[field], f)
+                else:
+                    yield "{}: {}".format(field_names[field], self.fields[field])
+            # implicit guesses of band and mode
+            elif field == 'band' and self.band is not None:
+                yield "{}: {}".format(field_names['band'], field_values['band'][0] if self.band == 0 else self.band)
+            elif field == 'mode' and self.mode is not None:
+                yield "{}: {}".format(field_names['mode'], field_values['mode'][self.mode])
+
+
+    def __str__(self):
+        return cbr_file.format(
+            fields = "\n".join(self.fields_str()).format(score=self.score * self.mult),
+            qsos = "\n".join(self.qsos)
+        )
