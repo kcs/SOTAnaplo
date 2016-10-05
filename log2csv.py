@@ -263,7 +263,7 @@ class Activation:
 
     def print_qsos(self, format='SOTA_v2', config=None, handle=None):
         if self.previous:
-            self.previous.print_qsos()
+            self.previous.print_qsos(format, config, handle)
 
         # TODO: trace, remove it from final code
         #print("Processing {} from {} with callsign {}".format(
