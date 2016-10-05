@@ -88,6 +88,7 @@ freq = re.compile(r"((?:[0-9]+\.)?[0-9]+)([kMG]?Hz|[mc]?m)?")
 rst = re.compile(r"[1-5][1-9][1-9]?")
 word = re.compile(r"\S+")
 contest = re.compile(r"contest:(\w+)\s*")
+annotation = re.compile(r"[@%$]{1,2}")
 
 def find_word(string, start=0):
     """Find the first word starting from `start` position
@@ -350,6 +351,12 @@ class QSO:
                 if m:
                     t['exch'] = w[0]
 
+            # annotation about QSLing
+            m = annotation.fullmatch(w[0])
+            if m:
+                t['qsl'] = (w[0][0], w[0][1:])
+
+
         # now filter the type list
         # print(words)
 
@@ -450,9 +457,16 @@ class QSO:
 
         # notes
         if noteselem < len(words):
-            self.notes = ' '.join(x[0] for x in words[noteselem:])
+            self.notes = ' '.join(x[0] for x in words[noteselem:] if 'qsl' not in x[2])
         else:
             self.notes = ''
+
+        # qsl info
+        q = [x[2]['qsl'] for x in words[noteselem:] if 'qsl' in x[2]]
+        if q:
+            self.qsl_sent = q[0][0]
+            if len(q[0]) > 1:
+                self.qsl_rcvd = q[0][1]
 
         # day adjustment for multiple day activation
         if prev:
