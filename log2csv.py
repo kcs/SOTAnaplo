@@ -66,8 +66,11 @@ import re
 from datetime import date
 import os.path
 import argparse
+import json
 
 from contest import Contest
+import country
+import qslinfo
 
 
 class LogException(Exception):
@@ -78,7 +81,7 @@ class LogException(Exception):
 
 # string matching functions
 call_prefix = r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)"
-call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?("+call_prefix+r"[0-9][a-z0-9]*)(?:/[0-9a-z]+)?", re.I)
+call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?("+call_prefix+r"[0-9][a-z0-9]*)(?:/[0-9a-z]+){0,2}", re.I)
 sota_ref = re.compile(r"[a-z0-9]{1,3}/[a-z]{2}-[0-9]{3}", re.I)
 wwff_ref = re.compile(r"[a-z0-9]{1,2}f{2}-[0-9]{3,4}", re.I)
 locator = re.compile(r"[a-x]{2}[0-9]{2}[a-x]{2}", re.I)
@@ -261,9 +264,9 @@ class Activation:
             self.qsos.append(QSO(string, prev_qso))
 
 
-    def print_qsos(self, format='SOTA_v2', config=None, handle=None):
+    def print_qsos(self, format='SOTA_v2', config=None, handle=None, qsl_info=None):
         if self.previous:
-            self.previous.print_qsos(format, config, handle)
+            self.previous.print_qsos(format, config, handle, qsl_info)
 
         # TODO: trace, remove it from final code
         #print("Processing {} from {} with callsign {}".format(
@@ -289,6 +292,24 @@ class Activation:
             for qso in self.qsos:
                 self.contest.add_qso(self.callsign, self.date, qso)
             print(self.contest, file=handle)
+        # qsl status format:
+        # group callsigns by country and add qsl marker:
+        #  * - sent, but not confirmed yet
+        #  ** - confirmed
+        # an additional config parameter is a dictionary with previous qsl
+        # information
+        elif format == 'qsl':
+            if not qsl_info:
+                qsl_info = qslinfo.QSL()
+                print_stat = True
+            else:
+                print_stat = False
+
+            qsl_info.add_qsos(self.qsos, self.date)
+
+            if print_stat:
+                qsl_info.print_stat(handle)
+
         else:
             raise ValueError("Unrecognized output format")
 
@@ -465,8 +486,7 @@ class QSO:
         q = [x[2]['qsl'] for x in words[noteselem:] if 'qsl' in x[2]]
         if q:
             self.qsl_sent = q[0][0]
-            if len(q[0]) > 1:
-                self.qsl_rcvd = q[0][1]
+            self.qsl_rcvd = q[0][1]
 
         # day adjustment for multiple day activation
         if prev:
@@ -543,8 +563,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Simple log converter for creating SOTA csv, Cabrillo, etc. from a simplified log file.')
     parser.add_argument('files', metavar='FILE', nargs='*',
                         help='Log file to be processed. If no file is present the standard input is used. If both some files and the standard input is needed use `-` to add standard input to the list of files')
-    parser.add_argument('-c', '--contest', action='store_true',
+    format_group = parser.add_mutually_exclusive_group()
+    format_group.add_argument('-c', '--contest', action='store_true',
                         help='Create output for the contest specified in the processed file')
+    format_group.add_argument('-q', '--qsl', action='store_true',
+                        help='Display QSL status of contacted OM')
     parser.add_argument('-o', '--output',
                         help='Output file or directory. If not present, the generated output is printed to standard output. If the argument is a directory, then a file with the same name as the input file and a proper extension will be used.')
 
@@ -553,6 +576,11 @@ if __name__ == '__main__':
     params = {}
     if args.contest:
         params['format'] = 'contest'
+    if args.qsl:
+        params['format'] = 'qsl'
+        params['qsl_info'] = qslinfo.QSL()
+        if os.path.isfile('qsl.lst'):
+            params['qsl_info'].load('qsl.lst')
 
     if not args.files:
         args.files.append('-')
@@ -579,3 +607,7 @@ if __name__ == '__main__':
 
     if 'output_handle' in params:
         close(params['output_handle'])
+
+    if 'qsl_info' in params:
+        params['qsl_info'].save('qsl.lst')
+        params['qsl_info'].print_stat()

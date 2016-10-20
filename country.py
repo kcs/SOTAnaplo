@@ -39,9 +39,30 @@ with open("cty.dat", 'r') as ctyfile:
 def find(call):
 	if call in fixcalls:
 		code = fixcalls[call]
-	cprefixes = [x for x in prefixes if call.startswith(x[0])]
-	if cprefixes:
-		code = max(cprefixes, key = lambda z: len(z[0]))[1]
 	else:
-		raise ValueError('Unrecognized callsign')
+		cprefixes = [x for x in prefixes if call.startswith(x[0])]
+		if cprefixes:
+			code = max(cprefixes, key = lambda z: len(z[0]))[1]
+		else:
+			raise ValueError('Unrecognized callsign')
 	return code, countries[code]
+
+country_alias = {
+	'*4U1V': '4U1U',
+	'*GM/s': 'GM',
+	'*IG9': 'I',
+	'*IT9': 'I',
+	'*JW/b': 'JW',
+	'*TA1': 'TA'
+}
+country_name_fix = {
+	'Asiatic Turkey': 'Turkey',
+	'Fed. Rep. of Germany': 'Germany'
+}
+
+def fix4dxcc(code):
+	return country_alias.get(code, code)
+
+def country_name(code):
+	name = countries[code]['name']
+	return country_name_fix.get(name, name)
