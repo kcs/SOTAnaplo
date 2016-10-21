@@ -7,6 +7,7 @@ and matching with a parsed log
 import json
 import datetime
 import re
+import argparse
 
 import country
 
@@ -185,8 +186,12 @@ class QSL:
 
         countries = {}
         for callsign, (call_info, date_str) in self.stat_list.items():
-            if call_info.get('qsl_received') or call_info.get('qsl_sent') or call_info.get('qsl_received'):
+            if call_info.get('qsl_received') or call_info.get('qsl_sent') or call_info.get('noqsl'):
                 continue
+            if callsign != call_info['call'] and self.countries[call_info['country']] == 'confirmed':
+                # roamed calls are displayed only if the country is not confirmed
+                continue
+
             if call_info['country'] not in countries:
                 countries[call_info['country']] = []
             countries[call_info['country']].append(callsign)
@@ -195,4 +200,49 @@ class QSL:
             print('{} {}: {}'.format(cty, country.country_name(cty), self.countries[cty] if self.countries.get(cty) else 'new!'), file=handle)
             for c in sorted(countries[cty]):
                 print('  {}'.format(c), file=handle)
+
+
+    def set_no_qsl(self, callsign):
+        m = call.fullmatch(callsign)
+        if not m:
+            raise ValueError("Invalid callsign: {}".format(callsign))
+        call_info = self.qsl_info.get(m.group(1).upper())
+        if type(call_info) is list:
+            for c in call_info:
+                c['noqsl'] = True
+        elif type(call_info) is dict:
+            call_info['noqsl'] = True
+
+
+if __name__ == '__main__':
+    # parse arguments
+    parser = argparse.ArgumentParser(description='QSL information handling utility')
+    parser.add_argument('-f', '--file',
+                        help='File used for storing qsl information. If ommited `qsl.lst` is used by default')
+
+    parser.add_argument('-b', '--blacklist',
+                        help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked as non-qsling')
+    args = parser.parse_args()
+
+    print(args)
+    qsl_info = QSL()
+
+    if args.file:
+        qsl_info.load(args.file)
+    else:
+        qsl_info.load('qsl.lst')
+
+
+    if args.blacklist:
+        with open(args.blacklist, 'r', encoding='utf-8') as f:
+            for line in f:
+                calls = line.strip().split()
+                for c in calls:
+                    qsl_info.set_no_qsl(c)
+
+
+    if args.file:
+        qsl_info.save(args.file)
+    else:
+        qsl_info.save('qsl.lst')
 
