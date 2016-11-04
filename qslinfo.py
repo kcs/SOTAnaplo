@@ -222,6 +222,8 @@ if __name__ == '__main__':
 
     parser.add_argument('-b', '--blacklist',
                         help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked as non-qsling')
+    parser.add_argument('-c', '--countries', action='store_true',
+                        help='Display a statistics about the countries worked')
     args = parser.parse_args()
 
     print(args)
@@ -232,6 +234,7 @@ if __name__ == '__main__':
     else:
         qsl_info.load('qsl.lst')
 
+    dirty = False
 
     if args.blacklist:
         with open(args.blacklist, 'r', encoding='utf-8') as f:
@@ -239,10 +242,35 @@ if __name__ == '__main__':
                 calls = line.strip().split()
                 for c in calls:
                     qsl_info.set_no_qsl(c)
+        dirty = True
+
+    if args.countries:
+        qsl_info.update_countries()
+        confirmed = [x for x in qsl_info.countries.keys() if qsl_info.countries[x] == 'confirmed']
+        print('Confirmed countries: {}\n{}'.format(len(confirmed), ' '.join(sorted(confirmed))))
+        unconfirmed = [x for x in qsl_info.countries.keys() if qsl_info.countries[x] == 'unconfirmed']
+        print('Unconfirmed countries: {}\n{}'.format(len(unconfirmed), ' '.join(sorted(unconfirmed))))
+        new = [x for x in qsl_info.countries.keys() if not qsl_info.countries[x]]
+        print('New countries: {}\n{}'.format(len(new), ' '.join(sorted(new))))
+
+        lc = {}
+        for i in qsl_info.calls():
+            if ((i['country'] in unconfirmed or i['country'] in new) and
+                ('qsl_recived' not in i and 'qsl_sent' not in i and 'noqsl' not in i)):
+                if i['country'] not in lc:
+                    lc[i['country']] = []
+                lc[i['country']].append(i['call'])
+
+        for cty in sorted(lc.keys()):
+            print('{} {}: {}'.format(cty, country.country_name(cty), qsl_info.countries[cty] if qsl_info.countries.get(cty) else 'new!'))
+            for c in sorted(lc[cty]):
+                print('  {}'.format(c))
 
 
-    if args.file:
-        qsl_info.save(args.file)
-    else:
-        qsl_info.save('qsl.lst')
+
+    if dirty:
+        if args.file:
+            qsl_info.save(args.file)
+        else:
+            qsl_info.save('qsl.lst')
 
