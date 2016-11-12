@@ -214,6 +214,27 @@ class QSL:
             call_info['noqsl'] = True
 
 
+    def set_qsl_sent(self, callsign):
+        if callsign.endswith('$'):
+            v = 'direct$'
+            callsign = callsign[:-1]
+        elif callsign.endswith('*'):
+            v = 'direct'
+            callsign = callsign[:-1]
+        else:
+            v = 'bureau'
+        m = call.fullmatch(callsign)
+        if not m:
+            raise ValueError("Invalid callsign: {}".format(callsign))
+        call_info = self.qsl_info.get(m.group(1).upper())
+        if type(call_info) is list:
+            for c in call_info:
+                if c['call'] == callsign[:m.end(1)].upper():
+                    c['qsl_sent'] = v
+        elif type(call_info) is dict:
+            call_info['qsl_sent'] = v
+
+
 if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser(description='QSL information handling utility')
@@ -222,11 +243,12 @@ if __name__ == '__main__':
 
     parser.add_argument('-b', '--blacklist',
                         help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked as non-qsling')
+    parser.add_argument('-s', '--send',
+                        help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked with sent.')
     parser.add_argument('-c', '--countries', action='store_true',
                         help='Display a statistics about the countries worked')
     args = parser.parse_args()
 
-    print(args)
     qsl_info = QSL()
 
     if args.file:
@@ -243,6 +265,15 @@ if __name__ == '__main__':
                 for c in calls:
                     qsl_info.set_no_qsl(c)
         dirty = True
+
+    if args.send:
+        with open(args.send, 'r', encoding='utf-8') as f:
+            for line in f:
+                calls = line.strip().split()
+                for c in calls:
+                    qsl_info.set_qsl_sent(c)
+        dirty = True
+
 
     if args.countries:
         qsl_info.update_countries()
