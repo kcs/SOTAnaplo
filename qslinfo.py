@@ -8,6 +8,7 @@ import json
 import datetime
 import re
 import argparse
+import sys
 
 import country
 
@@ -259,18 +260,30 @@ if __name__ == '__main__':
     dirty = False
 
     if args.blacklist:
-        with open(args.blacklist, 'r', encoding='utf-8') as f:
-            for line in f:
-                calls = line.strip().split()
-                for c in calls:
-                    qsl_info.set_no_qsl(c)
+        if args.blacklist == '-':
+            print('Enter "no-qsl" callsigns (followed by CTRL-D):')
+            lines = sys.stdin.readlines()
+        else:
+            with open(args.blacklist, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+        for line in lines:
+            calls = line.strip().split()
+            for c in calls:
+                qsl_info.set_no_qsl(c)
         dirty = True
 
     if args.send:
-        with open(args.send, 'r', encoding='utf-8') as f:
-            for line in f:
-                calls = line.strip().split()
-                for c in calls:
+        if args.send == '-':
+            print('Enter "qsl-sent" callsigns (followed by CTRL-D):')
+            lines = sys.stdin.readlines()
+        else:
+            with open(args.send, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+
+        for line in lines:
+            calls = line.strip().split()
+            for c in calls:
                     qsl_info.set_qsl_sent(c)
         dirty = True
 
