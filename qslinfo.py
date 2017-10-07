@@ -39,6 +39,19 @@ call_prefix = r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)"
 call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?("+call_prefix+r"[0-9][a-z0-9]*)(?:/[0-9a-z]+){0,2}", re.I)
 
 
+qsl_types = ('direct$', 'direct', 'bureau')
+def qsl_ranking(call, key, qsl):
+    """ Add qsl information to either sent or received (determined by key)
+    qsl information is ranked and higher one is kept
+    the order is: direct$ > direct > bureau
+    """
+    oqsl = getattr(call, key, None)
+    for q in qsl_types:
+        if q == qsl or q == oqsl:
+            call[key] = q
+            break
+
+
 class QSL:
     """ This class contains information about all callsigns contacted and
     their qsling status.
@@ -161,22 +174,11 @@ class QSL:
             rec = getattr(qso, 'qsl_rcvd', None)
             sen = getattr(qso, 'qsl_sent', None)
 
-            orec = getattr(this_call, 'qsl_received', None)
-            osen = getattr(this_call, 'qsl_sent', None)
-
-            if orec == 'direct$' or rec == '$':
-                this_call['qsl_received'] = 'direct$'
-            elif orec == 'direct' or rec == '%':
-                this_call['qsl_received'] = 'direct'
-            elif orec == 'bureau' or rec == '@':
-                this_call['qsl_received'] = 'bureau'
-
-            if osen == 'direct$' or sen == '$':
-                this_call['qsl_sent'] = 'direct$'
-            elif osen == 'direct' or sen == '%':
-                this_call['qsl_sent'] = 'direct'
-            elif osen == 'bureau' or sen == '@':
-                this_call['qsl_sent'] = 'bureau'
+            translate_qso_qsl = {'$': 'direct$', '%': 'direct', '@': 'bureau'}
+            if rec in translate_qso_qsl:
+                qsl_ranking(this_call, 'qsl_reveived', translate_qso_qsl[rec])
+            if sen in translate_qso_qsl:
+                qsl_ranking(this_call, 'qsl_sent', translate_qso_qsl[sen])
 
             # add the qso date to the new call list, for statistical purposes
             self.stat_list[base_call] = (this_call, date_str)
@@ -215,7 +217,7 @@ class QSL:
             call_info['noqsl'] = True
 
 
-    def set_qsl_sent(self, callsign):
+    def set_qsl_sent_rcvd(self, callsign, sent=True):
         if callsign.endswith('$'):
             v = 'direct$'
             callsign = callsign[:-1]
@@ -231,9 +233,9 @@ class QSL:
         if type(call_info) is list:
             for c in call_info:
                 if c['call'] == callsign[:m.end(1)].upper():
-                    c['qsl_sent'] = v
+                    qsl_ranking(c, 'qsl_sent' if sent else 'qsl_received', v)
         elif type(call_info) is dict:
-            call_info['qsl_sent'] = v
+            qsl_ranking(call_info, 'qsl_sent' if sent else 'qsl_received', v)
 
 
 if __name__ == '__main__':
@@ -242,10 +244,12 @@ if __name__ == '__main__':
     parser.add_argument('-f', '--file',
                         help='File used for storing qsl information. If ommited `qsl.lst` is used by default')
 
-    parser.add_argument('-b', '--blacklist',
-                        help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked as non-qsling')
-    parser.add_argument('-s', '--send',
-                        help='A file containing callsigns on each line. Each callsign if present in the qsl info database will be marked with sent.')
+    parser.add_argument('-b', '--blacklist', action= 'store_true',
+                        help='Read a list of callsigns from standard input to be marked as non-qsling')
+    parser.add_argument('-s', '--send', action = 'store_true',
+                        help='Read a list of callsigns from standard input to be marked with sent.')
+    parser.add_argument('-r', '--receive', action = 'store_true',
+                        help='Read a list of callsigns from standard input to be marked with received.')
     parser.add_argument('-c', '--countries', action='store_true',
                         help='Display a statistics about the countries worked')
     args = parser.parse_args()
@@ -260,12 +264,8 @@ if __name__ == '__main__':
     dirty = False
 
     if args.blacklist:
-        if args.blacklist == '-':
-            print('Enter "no-qsl" callsigns (followed by CTRL-D):')
-            lines = sys.stdin.readlines()
-        else:
-            with open(args.blacklist, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+        print('Enter "no-qsl" callsigns (followed by CTRL-D):')
+        lines = sys.stdin.readlines()
 
         for line in lines:
             calls = line.strip().split()
@@ -274,17 +274,23 @@ if __name__ == '__main__':
         dirty = True
 
     if args.send:
-        if args.send == '-':
-            print('Enter "qsl-sent" callsigns (followed by CTRL-D):')
-            lines = sys.stdin.readlines()
-        else:
-            with open(args.send, 'r', encoding='utf-8') as f:
-                lines = f.readlines()
+        print('Enter "qsl-sent" callsigns (followed by CTRL-D):')
+        lines = sys.stdin.readlines()
 
         for line in lines:
             calls = line.strip().split()
             for c in calls:
-                    qsl_info.set_qsl_sent(c)
+                    qsl_info.set_qsl_sent_rcvd(c)
+        dirty = True
+
+    if args.receive:
+        print('Enter "qsl-received" callsigns (followed by CTRL-D):')
+        lines = sys.stdin.readlines()
+
+        for line in lines:
+            calls = line.strip().split()
+            for c in calls:
+                    qsl_info.set_qsl_sent_rcvd(c, False)
         dirty = True
 
 
