@@ -38,6 +38,9 @@ def encode_set_as_list(obj):
 call_prefix = r"(?:(?=.?[a-z])[0-9a-z]{1,2}(?:(?<=3d)a)?)"
 call = re.compile(r"(?:"+call_prefix+r"[0-9]?/)?("+call_prefix+r"[0-9][a-z0-9]*)(?:/[0-9a-z]+){0,2}", re.I)
 
+uk_call = re.compile(r"(?<=^[GM2])[UDJIMW](?=[0-9][a-z])", re.I)
+uk_clubcall = re.compile(r"(?<=^[GM])[PTHNSC](?=[0-9][a-z])", re.I)
+
 
 qsl_types = ('direct$', 'direct', 'bureau')
 def qsl_ranking(call, key, qsl):
@@ -50,6 +53,18 @@ def qsl_ranking(call, key, qsl):
         if q == qsl or q == oqsl:
             call[key] = q
             break
+
+def reduce_UK_call(callsign):
+    """ Change the callsign to the English version of it if it belongs to
+    one of the UK entities
+    """
+    reduced = callsign
+    if reduced[0] in 'GM':
+        reduced = uk_call.sub('', reduced)
+        reduced = uk_call.sub('X', reduced)
+    elif reduced[0] == '2':
+        reduced = uk_call.sub('E', reduced)
+    return reduced
 
 
 class QSL:
@@ -70,6 +85,7 @@ class QSL:
         self.qsl_info = {}
         self.countries = {}
         self.stat_list = {}
+        self.alternate_calls = {}
 
 
     def load(self, filename):
@@ -79,6 +95,21 @@ class QSL:
         """
         with open(filename, 'r', encoding='utf-8') as f:
             self.qsl_info = json.load(f, object_hook = decode_set_hook(['qsos']))
+
+        # generate also a list of altrnate calls based on the existing data
+        # this is useful for adding qso-s at the correct location
+        for callsign, value in self.qsl_info.items():
+            # look only in lists
+            if type(value) is list:
+                for alternate in value:
+                    # look for non-obvious roamed call differences
+                    base_call = call.match(alternate['call']).group(1)
+                    if base_call != callsign:
+                        self.alternate_calls[base_call] = callsign
+            # if the callsign is a UK call, reduce it and add as alternate
+            alternate = reduce_UK_call(callsign)
+            if alternate != callsign:
+                self.alternate_calls[alternate] = callsign
 
 
     def save(self, filename):
@@ -137,6 +168,13 @@ class QSL:
             base_call = call.match(qso.callsign)
             roam_call = qso.callsign[:base_call.end(1)]
             base_call = base_call.group(1)
+            # make sure this is not a known alternate call
+            normalized_call = reduce_UK_call(base_call)
+            if normalized_call in self.alternate_calls:
+                base_call = self.alternate_calls[normalized_call]
+            elif normalized_call != base_call and normalized_call in self.qsl_info:
+                base_call = normalized_call
+
             if base_call in self.qsl_info:
                 this_call = self.qsl_info[base_call]
                 if type(this_call) is list:
@@ -238,6 +276,50 @@ class QSL:
             qsl_ranking(call_info, 'qsl_sent' if sent else 'qsl_received', v)
 
 
+    def change_uk_key(self, key):
+        if key[0] not in 'GM2':
+            return False
+        basekey = reduce_UK_call(key)
+        oldkey = ''
+        for k in self.qsl_info.keys():
+            if reduce_UK_call(k) == basekey:
+                oldkey = k
+        if oldkey and oldkey != key:
+            self.qsl_info[key] = self.qsl_info.pop(oldkey)
+            return True
+        return False
+
+
+    def merge_calls(self, calls, default=None):
+        """ merge multiple alternate callsigns already added to the qsl info
+        the calls is a list of possible alternates, default if specified will
+        be used as the new key for the merged dat
+        if default is not specified first element in calls will be used as key
+        """
+        if type(calls) is not list:
+            raise ValueError("Invalid list of calls to merge")
+        if default is None:
+            default = calls[0]
+        m = call.match(default)
+        if not m:
+            raise ValueError("Default callsign does not look like a valid one")
+        callsign = m.group(1).upper()
+        # find keys from qsl_infos
+        keys = [k for k in self.qsl_info.keys() if k in calls]
+        if len(keys) == 1:
+            if keys[0] != callsign:
+                self.qsl_info[callsign] = self.qsl_info.pop(keys[0])
+        elif len(keys) > 1:
+            qsl = []
+            for k in keys:
+                old_qsl = self.qsl_info.pop(k)
+                if type(old_qsl) is list:
+                    qsl.extend(old_qsl)
+                else:
+                    qsl.append(old_qsl)
+            self.qsl_info[callsign] = qsl
+
+
 if __name__ == '__main__':
     # parse arguments
     parser = argparse.ArgumentParser(description='QSL information handling utility')
@@ -252,6 +334,8 @@ if __name__ == '__main__':
                         help='Read a list of callsigns from standard input to be marked with received.')
     parser.add_argument('-c', '--countries', action='store_true',
                         help='Display a statistics about the countries worked')
+    parser.add_argument('-u', '--uk-call',
+                        help='Set default UK callsign')
     args = parser.parse_args()
 
     qsl_info = QSL()
@@ -292,6 +376,10 @@ if __name__ == '__main__':
             for c in calls:
                     qsl_info.set_qsl_sent_rcvd(c, False)
         dirty = True
+
+    if args.uk_call:
+        if qsl_info.change_uk_key(args.uk_call.upper()):
+            dirty = True
 
 
     if args.countries:
