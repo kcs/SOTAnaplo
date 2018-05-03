@@ -602,7 +602,7 @@ if __name__ == '__main__':
                 elif 'config' in params:
                     del params['config']
 
-            with open(file, 'r') as f:
+            with open(file, 'r', encoding='utf-8') as f:
                 parse_input(f, **params)
 
     if 'output_handle' in params:
