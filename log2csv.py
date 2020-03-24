@@ -352,7 +352,7 @@ class QSO:
             if i < 4:
                 if w[0].lower() in ['cw', 'ssb', 'fm', 'am']:
                     t['mode'] = w[0].upper()
-                elif w[0].lower() in ['data', 'psk', 'psk31', 'psk63', 'rtty', 'fsk441', 'jt65']:
+                elif w[0].lower() in ['data', 'psk', 'psk31', 'psk63', 'rtty', 'fsk441', 'jt65', 'ft8']:
                     t['mode'] = 'Data'
                 elif w[0].lower() in ['other']:
                     t['mode'] = 'Other'
