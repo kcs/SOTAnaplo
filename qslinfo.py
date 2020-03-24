@@ -304,11 +304,19 @@ class QSL:
         if not m:
             raise ValueError("Default callsign does not look like a valid one")
         callsign = m.group(1).upper()
-        # find keys from qsl_infos
-        keys = [k for k in self.qsl_info.keys() if k in calls]
+        # normalize calls
+        keys = []
+        for c in calls:
+            m = call.match(c)
+            if not m:
+                raise ValueError("Callsing {} is not valid".format(c))
+            k = m.group(1).upper()
+            if k in self.qsl_info:
+                keys.append(k)
         if len(keys) == 1:
             if keys[0] != callsign:
                 self.qsl_info[callsign] = self.qsl_info.pop(keys[0])
+                return True
         elif len(keys) > 1:
             qsl = []
             for k in keys:
@@ -318,6 +326,8 @@ class QSL:
                 else:
                     qsl.append(old_qsl)
             self.qsl_info[callsign] = qsl
+            return True
+        return False
 
 
 if __name__ == '__main__':
@@ -336,6 +346,8 @@ if __name__ == '__main__':
                         help='Display a statistics about the countries worked')
     parser.add_argument('-u', '--uk-call',
                         help='Set default UK callsign')
+    parser.add_argument('-m', '--merge', nargs='+',
+                        help='Merge multiple alternate callsigns')
     args = parser.parse_args()
 
     qsl_info = QSL()
@@ -381,6 +393,9 @@ if __name__ == '__main__':
         if qsl_info.change_uk_key(args.uk_call.upper()):
             dirty = True
 
+    if args.merge:
+        if qsl_info.merge_calls(args.merge):
+            dirty = True
 
     if args.countries:
         qsl_info.update_countries()
